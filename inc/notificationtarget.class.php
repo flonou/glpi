@@ -1245,6 +1245,46 @@ class NotificationTarget extends CommonDBChild {
       return $this->tag_descriptions;
    }
 
+   public static function getForeachTag($tag) {
+      return "##FOREACH".$tag."## ##ENDFOREACH".$tag."##";
+   }
+
+   public static function getValueTag($tag) {
+      return "##".$tag."##";
+   }
+
+   public static function getLangTag($tag) {
+      return "##lang".$tag."##";
+   }
+
+   function addEventToTag($existing_tag, $new_events ) {
+
+      $tag = self::getForeachTag($existing_tag);
+      if( $this->tag_descriptions[self::TAG_VALUE][$tag]['foreach']){
+         if (is_array($new_events) && is_array($this->tag_descriptions[self::TAG_VALUE][$tag]['events'])) {
+            $this->tag_descriptions[self::TAG_VALUE][$tag]['events'] = array_merge($this->tag_descriptions[self::TAG_VALUE][$tag]['events'],$new_events);
+         } else {
+            $this->tag_descriptions[self::TAG_VALUE][$tag]['events'] = $new_events;
+         }
+      } else {
+         $tag = self::getValueTag($existing_tag);
+         if ($this->tag_descriptions[self::TAG_VALUE][$tag]['value']) {
+            if (is_array($new_events) && is_array($this->tag_descriptions[self::TAG_VALUE][$tag]['events'])) {
+               $this->tag_descriptions[self::TAG_VALUE][$tag]['events'] = array_merge($this->tag_descriptions[self::TAG_VALUE][$tag]['events'],$new_events);
+            } else {
+               $this->tag_descriptions[self::TAG_VALUE][$tag]['events'] = $new_events;
+            }
+         }
+         $tag = self::getLangTag($existing_tag);
+         if (isset($this->tag_descriptions[self::TAG_LANGUAGE][$tag])){
+            if (is_array($new_events) && is_array($this->tag_descriptions[self::TAG_LANGUAGE][$tag]['events'])) {
+               $this->tag_descriptions[self::TAG_LANGUAGE][$tag]['events'] = array_merge($this->tag_descriptions[self::TAG_LANGUAGE][$tag]['events'],$new_events);
+            } else {
+               $this->tag_descriptions[self::TAG_LANGUAGE][$tag]['events'] = $new_events;
+            }
+         }
+      }
+   }
 
    /**
     * @param $options   array
@@ -1265,7 +1305,7 @@ class NotificationTarget extends CommonDBChild {
 
       if ($p['tag']) {
          if (is_array($p['events'])) {
-            $events = $this->getEvents();
+            $events = $this->getAllEvents();
             $tmp = [];
 
             foreach ($p['events'] as $event) {
@@ -1276,19 +1316,39 @@ class NotificationTarget extends CommonDBChild {
          }
 
          if ($p['foreach']) {
-            $tag = "##FOREACH".$p['tag']."## ##ENDFOREACH".$p['tag']."##";
-            $this->tag_descriptions[self::TAG_VALUE][$tag] = $p;
-
-         } else {
-            if ($p['value']) {
-               $tag = "##".$p['tag']."##";
+            $tag = self::getForeachTag($p['tag']);
+            if (isset($this->tag_descriptions[self::TAG_VALUE][$tag])){
+               $this->tag_descriptions[self::TAG_VALUE][$tag]['events'] = array_merge($this->tag_descriptions[self::TAG_VALUE][$tag]['events'],$p['events']);
+            } else {
                $this->tag_descriptions[self::TAG_VALUE][$tag] = $p;
             }
 
+         } else {
+            if ($p['value']) {
+               $tag = self::getValueTag($p['tag']);
+               if (isset($this->tag_descriptions[self::TAG_VALUE][$tag])){
+                  if (is_array($p['events'])) {
+                     $this->tag_descriptions[self::TAG_VALUE][$tag]['events'] = array_merge($this->tag_descriptions[self::TAG_VALUE][$tag]['events'],$p['events']);
+                  } else {
+                     $this->tag_descriptions[self::TAG_VALUE][$tag]['events'] = $p['events'];
+                  }
+               } else {
+               $this->tag_descriptions[self::TAG_VALUE][$tag] = $p;
+               }
+            }
+
             if ($p['label']&&$p['lang']) {
-               $tag = "##lang.".$p['tag']."##";
+               $tag = self::getLangTag($p['tag']);
                $p['label'] = $p['label'];
-               $this->tag_descriptions[self::TAG_LANGUAGE][$tag] = $p;
+               if (isset($this->tag_descriptions[self::TAG_LANGUAGE][$tag])){
+                  if (is_array($p['events'])) {
+                     $this->tag_descriptions[self::TAG_LANGUAGE][$tag]['events'] = array_merge($this->tag_descriptions[self::TAG_LANGUAGE][$tag]['events'],$p['events']);
+                  } else {
+                     $this->tag_descriptions[self::TAG_LANGUAGE][$tag]['events'] = $p['events'];
+                  }
+               } else {
+                  $this->tag_descriptions[self::TAG_LANGUAGE][$tag] = $p;
+               }
             }
          }
       }
